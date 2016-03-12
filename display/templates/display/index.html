@@ -141,7 +141,9 @@
             console.log("onConnectionLost:"+responseObject.errorMessage);
           }
         }
-
+           
+        var updateInterval = null;
+           
         // called when a message arrives
         function onMessageArrived(message) {
           console.log("onMessageArrived:"+message.destinationName+", "+message.payloadString);
@@ -163,8 +165,35 @@
                     from: wind_direction-(wind_range/2),
                     to: wind_direction+(wind_range/2),
                     color: '#999'
-                  }]})
-        }
+                  }]});
+          
+
+
+          var direction = true;
+          
+          if (updateInterval) {
+            clearInterval(updateInterval);
+          }
+          
+          updateInterval = setInterval(function () {
+              var val = null;
+              if (direction) {
+                val = wind_direction + wind_range/2;
+                if(val > 360) {
+                  val -= 360;
+                }
+              } else {
+                val = wind_direction - wind_range/2;
+                if (val < 0) {
+                  val += 360;
+                }
+              }
+              gaugeCompass.setValue(val);
+              
+              direction = !direction;
+
+          }, 1000);  
+        };            
      
       }
     </script>
