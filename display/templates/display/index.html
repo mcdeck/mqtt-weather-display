@@ -1,0 +1,185 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset=utf-8 />
+	<title></title>
+	<script type="text/javascript" src="{% static 'display/mqttws31.js' %}"></script>
+  
+  <script>var CANV_GAUGE_FONTS_PATH = '{% static 'display/fonts' %}'</script>
+  <script src="{% static 'display/gauge.js' %}"></script>
+	<!--[if IE]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+  
+  <script>
+    var gaugeCompas = null;
+    var wind_direction = 0;
+    var wind_range = 0;
+    
+    window.onload = function () {
+        gaugeCompass = new Gauge({
+            renderTo: 'gauge-compass',
+            width: 400,
+            height: 400,
+            glow: false,
+            units: false,
+            title: false,
+            minValue: 0,
+            maxValue: 360,
+            //majorTicks: ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE', 'S'],
+            majorTicks: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'],
+            minorTicks: 22,
+            ticksAngle: 360,
+            //startAngle: 0,
+            startAngle: 180,
+            strokeTicks: false,
+            highlights: false,
+            colors: {
+                plate: '#222',
+                majorTicks: '#f5f5f5',
+                minorTicks: '#ddd',
+                title: '#fff',
+                units: '#ccc',
+                numbers: '#eee',
+                needle: {
+                    start: 'rgba(240, 128, 128, 1)',
+                    end: 'rgba(255, 160, 122, .9)',
+                    circle: {
+                        outerStart: '#ccc',
+                        outerEnd: '#ccc',
+                        innerStart: '#222',
+                        innerEnd: '#222'
+                    },
+                    shadowUp: false,
+                    shadowDown: false
+                },
+                valueBox: {
+                    rectStart: '#888',
+                    rectEnd: '#666',
+                    background: '#babab2',
+                    shadow: 'rgba(0, 0, 0, 1)'
+                },
+                valueText: {
+                    foreground: '#444',
+                    shadow: 'rgba(0, 0, 0, 0.3)'
+                },
+                circle: {
+                    shadow: 'rgba(0, 0, 0, 0.5)',
+                    outerStart: '#ddd',
+                    outerEnd: '#aaa',
+                    middleStart: '#eee',
+                    middleEnd: '#f0f0f0',
+                    innerStart: '#fff',
+                    innerEnd: '#fff'
+                }
+            },
+            circles: {
+                outerVisible: false,
+                middleVisible: false,
+                innerVisible: true
+            },
+            needle: {
+                type: 'line',
+                end: 89,
+                start: 65,
+                width: 3,
+                circle: {
+                    size: 15,
+                    inner: false,
+                    outer: true
+                }
+            },
+            valueBox: {
+                visible: false
+            },
+            valueText: {
+                visible: false
+            },
+            animation: {
+                delay: 10,
+                duration: 1000,
+                fn: 'linear'
+            }
+        });
+
+        //gaugeCompass.onready = function () {
+        //    setInterval(function () {
+        //        gaugeCompass.setValue(Math.random() * (195 - 165) + 165);
+        //    }, 1000);
+        //};
+
+        //gaugeCompass.setRawValue(180);
+
+        gaugeCompass.draw();
+        
+        client = new Paho.MQTT.Client("spock", 9001, "paho_test");
+
+        // set callback handlers
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
+
+        // connect the client
+        client.connect({onSuccess:onConnect});
+
+
+        // called when the client connects
+        function onConnect() {
+          // Once a connection has been made, make a subscription and send a message.
+          console.log("onConnect");
+          client.subscribe("hm/status/Wetterstation/WIND_SPEED");
+          client.subscribe("hm/status/Wetterstation/WIND_DIRECTION");
+          client.subscribe("hm/status/Wetterstation/WIND_DIRECTION_RANGE");
+          //message = new Paho.MQTT.Message("Hello");
+          //message.destinationName = "/World";
+          //client.send(message);
+        }
+
+        // called when the client loses its connection
+        function onConnectionLost(responseObject) {
+          if (responseObject.errorCode !== 0) {
+            console.log("onConnectionLost:"+responseObject.errorMessage);
+          }
+        }
+
+        // called when a message arrives
+        function onMessageArrived(message) {
+          console.log("onMessageArrived:"+message.destinationName+", "+message.payloadString);
+          
+          var js = JSON.parse(message.payloadString);
+
+          if(message.destinationName == "hm/status/Wetterstation/WIND_DIRECTION"){
+            document.getElementById("windr").innerHTML = Math.ceil(js.val);
+            wind_direction = js.val;
+          } else if(message.destinationName == "hm/status/Wetterstation/WIND_DIRECTION_RANGE"){
+            document.getElementById("winda").innerHTML = Math.ceil(js.val);
+            wind_range = js.val;
+          } else if(message.destinationName == "hm/status/Wetterstation/WIND_SPEED"){
+            document.getElementById("windg").innerHTML = Math.ceil(js.val);
+          }
+          
+          gaugeCompass.setValue(wind_direction);
+          gaugeCompass.updateConfig({highlights: [{
+                    from: wind_direction-(wind_range/2),
+                    to: wind_direction+(wind_range/2),
+                    color: '#999'
+                  }]})
+        }
+     
+      }
+    </script>
+  
+</head>
+<body>
+  <div>
+    <canvas id="gauge-compass"></canvas>
+
+  	<div class="orientation-data">
+  		<div>Windrichtung: <span id="windr"></span>&deg;</div>
+  		<div>Abweichung: <span id="winda"></span>&deg;</div>
+  		<div>Geschwindigkeit: <span id="windg"></span> km/h</div>
+  	</div>
+  </div>  
+</body>
+</html>
+
